@@ -1,18 +1,25 @@
 from ultralytics import YOLO
 from pathlib import Path
-from utils import process_frame, process_video
+from utils import process_video, process_frames, annotate_frame, annotate_video
 import cv2
 
 MODEL_PATH = Path("weights/last.pt")
-IMG_SIZE = 640
-IMG_PATH = Path("test-data/image.png")
-VIDEO_PATH = Path("test-data/video.mp4")
+IMG_PATH = Path("test/image3.png")
+VIDEO_PATH = Path("test/video.mp4")
 
 model = YOLO(MODEL_PATH, "detection")
 
 img = cv2.imread(str(IMG_PATH))
-annotated_frame = process_frame(model, img)
+detections = process_frames(model, img)[0]
 
-cv2.imwrite("output.png", annotated_frame)
+annotated_frame = annotate_frame(img, detections, show_result=False)
 
-# process_video(model, VIDEO_PATH, "output2.mp4")
+cv2.imwrite(r"./output/annotated_frame.png", annotated_frame)
+
+
+# detections = process_video(model, str(VIDEO_PATH), 16)
+
+# annotated_frames=annotate_video( str(VIDEO_PATH), r"./output/output.mp4",detections)
+
+
+print("Done!")

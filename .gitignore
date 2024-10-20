@@ -3,3 +3,6 @@ results
 weights
 test.ipynb
 __pycache__
+output/output.mp4
+stubs
+test/video.mp4
