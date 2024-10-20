@@ -10,7 +10,7 @@ import pickle
 
 # ================================ ANNOTATIONS =======================================
 
-color_palette = ['#FFFF00', '#DC143C', '#1AA7EC', '#FFFFFF', ]
+color_palette = ['#FFFF00', '#DC143C', '#4169e1', '#FFFFFF', ]
 
 # ANNOTATERS
 player_annotater = sv.EllipseAnnotator(
