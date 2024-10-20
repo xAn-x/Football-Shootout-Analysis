@@ -1,7 +1,14 @@
-
 # Football Shootout Analysis
 
-This repository provides tools and methods for analyzing football shootouts. The project focuses on various tasks, including tracking players and the ball, identifying the player with the ball, and dividing teams based on their jerseys using advanced techniques such as SigLip, UMAP, and KMeans clustering.
+This repository provides tools and methods for analyzing football shootouts. The project focuses on various tasks, including tracking players and the ball, identifying the player with the ball, and dividing teams based on their jerseys using advanced techniques.
+
+## Key Features
+
+- **YOLOv11 for Object Detection**: Leverage the power of YOLOv11 for real-time object detection of players and the ball during shootouts.
+- **Team Division by Jersey Color**: Utilize __SigLip__, __UMAP__, and __KMeans__ to cluster players based on their jersey colors, effectively dividing teams for analysis.
+- **Player and Ball Tracking**: Implement tracking algorithms to follow players and the ball throughout the shootout.
+- **Finding Player with the Ball**: Automatically identify which player has the ball at any given moment.
+- 
 
 
 ## Installation
@@ -13,7 +20,6 @@ git clone https://github.com/xAn-x/Football-Shootout-Analysis.git
 cd Football-Shootout-Analysis
 pip install -r requirements.txt
 ```
---- 
 
 ## Original Images vs. Model Results
 
@@ -30,15 +36,6 @@ This section displays the original images alongside the results produced by the 
 | Original | Model Result |
 |----------|--------------|
 | <img src="test/video.gif" alt="Video" class="responsive-img" style="width:550px"> | <img src="output/output.gif" alt="Output" class="responsive-img" style="width:550px;"> |
-
----
-
-## Key Features
-
-- **Player and Ball Tracking**: Implement tracking algorithms to follow players and the ball throughout the shootout.
-- **Finding Player with the Ball**: Automatically identify which player has the ball at any given moment.
-- **Team Division by Jersey Color**: Utilize SigLip, UMAP, and KMeans to cluster players based on their jersey colors, effectively dividing teams for analysis.
-
 
 ## Contributing
 
