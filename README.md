@@ -19,14 +19,19 @@ pip install -r requirements.txt
 
 This section displays the original images alongside the results produced by the model. The comparison highlights the effectiveness of the analysis in detecting and tracking players and the ball.
 
-| Original  | Model Result |
-|----------------|--------------|
-| ![Original Image 1](test/image3.png) | ![Model Output](output/annotated_frame.png) |
-| ![Video](https://github.com/xAn-x/Football-Shootout-Analysis/blob/master/test/video_compressed.mp4) | ![Output](https://github.com/xAn-x/Football-Shootout-Analysis/blob/master/output/output_compressed.mp4)|
+| Original | Model Result |
+|----------|--------------|
+| <img src="test/image1.png" alt="Image 1" class="responsive-img"> | <img src="output/image1_output.png" alt="Model Output" class="responsive-img"> |
+| <img src="test/image2.png" alt="Image 2" class="responsive-img"> | <img src="output/image2_output.png" alt="Model Output" class="responsive-img"> |
+| <img src="test/image2.png" alt="Image 2" class="responsive-img"> | <img src="output/image3_output.png" alt="Model Output" class="responsive-img"> |
+
+### Video
+
+| Original | Model Result |
+|----------|--------------|
+| <img src="test/video.gif" alt="Video" class="responsive-img" style="width:550px"> | <img src="output/output.gif" alt="Output" class="responsive-img" style="width:550px;"> |
 
 ---
-
-Feel free to add more rows for additional images or adjust the text as needed! Let me know if you need anything else.
 
 ## Key Features
 
