@@ -1,5 +1,8 @@
 ultralytics
 supervision
 umap-learn
+scikit-learn
+toolz
 transformers
-sklearn
+sentencepiece
+gdown

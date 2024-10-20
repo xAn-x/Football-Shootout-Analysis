@@ -7,10 +7,15 @@ from pathlib import Path
 import os
 import math
 import pickle
+from TeamAssigner import TeamAssigner
+
+# ================================= Team Assigner ===================================
+team_assigner = TeamAssigner()
+
 
 # ================================ ANNOTATIONS =======================================
 
-color_palette = ['#FFFF00', '#DC143C', '#4169e1', '#FFFFFF', ]
+color_palette = ["#000000",'#FFFF00', "#000000",'#FFFFFF',"#000000",'#DC143C', '#4169e1',]
 
 # ANNOTATERS
 player_annotater = sv.EllipseAnnotator(
@@ -74,6 +79,7 @@ def annotate_frame(frame: np.ndarray, detections: sv.Detections, show_result=Fal
     Returns:
         np.ndarray: The annotated frame.
     """
+
     all_detections_but_ball = [v for k, v in detections.items() if k != 'ball']
     all_detections_but_ball = sv.Detections.merge(all_detections_but_ball)
     all_detections_but_ball = player_tracker.update_with_detections(
@@ -225,7 +231,7 @@ def batch_generator(generator, batch_size=16):
         yield batch
 
 
-def process_frames(model, frames: np.ndarray | list[np.ndarray]) -> list[defaultdict[(str, sv.Detections)]]:
+def process_frames(model, frames: np.ndarray | list[np.ndarray],verbose=False) -> list[defaultdict[(str, sv.Detections)]]:
     """
     Runs object detection model on a frame and performs non-maximum suppression
     and filtering of detections.
@@ -237,17 +243,27 @@ def process_frames(model, frames: np.ndarray | list[np.ndarray]) -> list[default
     Returns:
         list[defaultdict[(str, sv.Detections)]]: A list of detections for each frame.
     """
-    results = model(frames, conf=0.1, verbose=False)
+
+    if isinstance(frames, np.ndarray):
+        frames = [frames]
+
+    results = model(frames, conf=0.1, verbose=verbose)
     detections = map(sv.Detections.from_ultralytics, results)
     detections = [detection.with_nms(0.3, False) for detection in detections]
 
     # filter detections
-    detections = map(filter_detections, detections)
+    detections = list(map(filter_detections, detections))
 
-    return list(detections)
+    # Assign team IDs
+    for frame,frame_detections in zip(frames,detections):
+        team_ids=team_assigner.get_team_ids(frame,frame_detections['player'],verbose=verbose)
+        team_ids+=5
+        frame_detections['player'].class_id=team_ids
+
+    return detections
 
 
-def process_video(model, video_path: str, batch_size=16, save_stubs: bool = False, stubs_dir: str = "./stubs") -> list[defaultdict[(str, sv.Detections)]]:
+def process_video(model, video_path: str, batch_size=16, save_stubs: bool = False, stubs_dir: str = "./stubs",verbose=False) -> list[defaultdict[(str, sv.Detections)]]:
     """
     Processes a video by running each frame through a detection model and returns the detections list.
 
@@ -281,7 +297,7 @@ def process_video(model, video_path: str, batch_size=16, save_stubs: bool = Fals
 
     # Process frames in batches
     for batch in tqdm(batch_gen, desc="Processing Frames", total=math.ceil(video_info.total_frames / batch_size)):
-        detection = process_frames(model, batch)
+        detection = process_frames(model, batch,verbose=verbose)
         detections.extend(detection)
 
     if save_stubs:
