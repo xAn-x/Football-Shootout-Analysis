@@ -23,7 +23,7 @@ class TeamAssigner():
     self.DEVICE=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
   @torch.no_grad()
-  def get_team_ids(self,frame,detections:sv.Detections,batch_size=8,verbose=True) -> np.ndarray:
+  def get_team_ids(self,frame,detections:sv.Detections,batch_size=16,verbose=True) -> np.ndarray:
     if detections.is_empty():
       return np.array([])
 

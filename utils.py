@@ -15,10 +15,11 @@ team_assigner = TeamAssigner()
 
 # ================================ ANNOTATIONS =======================================
 
-color_palette = ["#000000",'#FFFF00', "#000000",'#FFFFFF',"#000000",'#DC143C', '#4169e1',]
+color_palette = ["#000000", '#FFFF00', "#000000",
+                 '#FFFFFF', "#000000", '#DC143C', '#4169e1', "#000000"]
 
 # ANNOTATERS
-player_annotater = sv.EllipseAnnotator(
+ecclipse_annotater = sv.EllipseAnnotator(
     color=sv.ColorPalette.from_hex(color_palette), thickness=2)
 
 ball_annotater = sv.TriangleAnnotator(
@@ -79,36 +80,22 @@ def annotate_frame(frame: np.ndarray, detections: sv.Detections, show_result=Fal
     Returns:
         np.ndarray: The annotated frame.
     """
+    # Mens
+    annotated_frame = frame.copy()
+    for key, det in detections.items():
+        if key == 'ball' or key == 'player_with_ball':
+            continue
 
-    all_detections_but_ball = [v for k, v in detections.items() if k != 'ball']
-    all_detections_but_ball = sv.Detections.merge(all_detections_but_ball)
-    all_detections_but_ball = player_tracker.update_with_detections(
-        all_detections_but_ball)
-
-    # Ball-Detections
-    ball_detection = detections['ball']
-    if ball_detection:
-        ball_detection = ball_detection[[np.argmax(ball_detection.confidence)]]
-
-    # Player with ball
-    player_with_ball = get_player_with_ball(
-        detections['player'], ball_detection)
-
-    # Annotate
-    # men
-    labels = [
-        f'{tracker_id}' for tracker_id in all_detections_but_ball.tracker_id]
-
-    annotated_frame = draw_detections(
-        frame.copy(), all_detections_but_ball, player_annotater, labels)
+        annotated_frame = draw_detections(
+            annotated_frame, det, ecclipse_annotater, [f"{ID}" for ID in det.tracker_id])
 
     # ball
     annotated_frame = draw_detections(
-        annotated_frame, ball_detection, ball_annotater, pad=10)
+        annotated_frame, detections['ball'], ball_annotater, pad=10)
 
     # player with ball
     annotated_frame = draw_detections(
-        annotated_frame, player_with_ball, player_with_ball_annotater, pad=40)
+        annotated_frame, detections['player_with_ball'], player_with_ball_annotater, pad=40)
 
     if show_result:
         sv.plot_image(annotated_frame, size=(6, 8))
@@ -144,8 +131,7 @@ def annotate_video(video_path: str, output_path: str, detections: list[defaultdi
 
 # =============================== Processing Utils =======================================
 # Trackers
-player_tracker = sv.ByteTrack()
-player_tracker.reset()
+trackers = {obj: sv.ByteTrack() for obj in ['player', 'goalkeeper', 'referee']}
 
 
 def get_player_with_ball(player_detections: sv.Detections, ball_detection: sv.Detections, min_dist: float = 100) -> sv.Detections:
@@ -205,6 +191,19 @@ def filter_detections(detections) -> dict[(str, sv.Detections)]:
     filtered_detections = defaultdict(
         sv.Detections.empty,  {k: detections[v]for k, v in filtered_detections.items()})
 
+    # Track players,referee and goalkeeper
+    for key in filtered_detections.keys():
+        if key == "ball":
+            filtered_detections[key] = filtered_detections[key][[
+                np.argmax(filtered_detections[key].confidence)]]
+        else:
+            filtered_detections[key] = trackers[key].update_with_detections(
+                filtered_detections[key])
+
+    # Filter out player with ball
+    filtered_detections["player_with_ball"] = get_player_with_ball(
+        filtered_detections["player"], filtered_detections["ball"])
+
     return filtered_detections
 
 
@@ -231,7 +230,7 @@ def batch_generator(generator, batch_size=16):
         yield batch
 
 
-def process_frames(model, frames: np.ndarray | list[np.ndarray],verbose=False) -> list[defaultdict[(str, sv.Detections)]]:
+def process_frames(model, frames: np.ndarray | list[np.ndarray], verbose=False) -> list[defaultdict[(str, sv.Detections)]]:
     """
     Runs object detection model on a frame and performs non-maximum suppression
     and filtering of detections.
@@ -248,22 +247,16 @@ def process_frames(model, frames: np.ndarray | list[np.ndarray],verbose=False) -
         frames = [frames]
 
     results = model(frames, conf=0.1, verbose=verbose)
-    detections = map(sv.Detections.from_ultralytics, results)
+    detections = [sv.Detections.from_ultralytics(result) for result in results]
     detections = [detection.with_nms(0.3, False) for detection in detections]
 
     # filter detections
-    detections = list(map(filter_detections, detections))
-
-    # Assign team IDs
-    for frame,frame_detections in zip(frames,detections):
-        team_ids=team_assigner.get_team_ids(frame,frame_detections['player'],verbose=verbose)
-        team_ids+=5
-        frame_detections['player'].class_id=team_ids
+    detections = [filter_detections(d) for d in detections]
 
     return detections
 
 
-def process_video(model, video_path: str, batch_size=16, save_stubs: bool = False, stubs_dir: str = "./stubs",verbose=False) -> list[defaultdict[(str, sv.Detections)]]:
+def process_video(model, video_path: str, batch_size=16, save_stubs: bool = False, stubs_dir: str = "./stubs", verbose=False) -> list[defaultdict[(str, sv.Detections)]]:
     """
     Processes a video by running each frame through a detection model and returns the detections list.
 
@@ -275,7 +268,7 @@ def process_video(model, video_path: str, batch_size=16, save_stubs: bool = Fals
         stubs_dir (str, optional): Directory to save the pickle file containing detection results. Defaults to "/stubs".
 
     Returns:
-        list: A list of detection results for each processed video frame.
+        list[defaultdict[(str, sv.Detections)]]: A array of detection results for each processed video frame.
     """
 
     if not os.path.exists(stubs_dir):
@@ -295,10 +288,72 @@ def process_video(model, video_path: str, batch_size=16, save_stubs: bool = Fals
     print(f"Total Frames: {video_info.total_frames}")
     detections = []
 
-    # Process frames in batches
-    for batch in tqdm(batch_gen, desc="Processing Frames", total=math.ceil(video_info.total_frames / batch_size)):
-        detection = process_frames(model, batch,verbose=verbose)
-        detections.extend(detection)
+    # Process frames
+    for frames in tqdm(batch_gen, desc="Detecting entities...", total=math.ceil(video_info.total_frames / batch_size)):
+        frame_detections = process_frames(model, frames, verbose=verbose)
+        detections.extend(frame_detections)
+
+    if save_stubs:
+        print("Saving stubs...")
+        with open(stubs_path, 'wb') as f:
+            pickle.dump(detections, f)
+        print(f"Saved stubs to: {stubs_path}")
+
+    return detections
+
+
+def update_detections_with_teamid_in_a_frame(frame: np.ndarray, detections: defaultdict[(str, sv.Detections)], verbose=False) -> defaultdict[(str, sv.Detections)]:
+    team_ids = team_assigner.get_team_ids(
+        frame, detections['player'], verbose=verbose)
+    team_ids += 5
+    detections['player'].class_id = team_ids
+    return detections
+
+
+def update_detections_with_teamid_in_video(video_path: str, detections: np.ndarray[defaultdict[(str, sv.Detections)]], save_stubs=False, stubs_dir="./stubs/teams", verbose=False) -> np.ndarray[defaultdict[(str, sv.Detections)]]:
+    if not os.path.exists(stubs_dir):
+        os.makedirs(stubs_dir)
+
+    stubs_path = Path(stubs_dir) / f"{Path(video_path).stem}_output.pkl"
+
+    if save_stubs == False and os.path.exists(stubs_path):
+        with open(stubs_path, 'rb') as f:
+            return pickle.load(f)
+
+    frame_generator = sv.get_video_frames_generator(video_path)
+    n = len(detections)
+    # assign team
+    already_assigned_tracker_ids = set()
+    tracker_id_to_team_id = {}
+
+    for i in tqdm(range(n), total=n, desc="Analyzing Crops..."):
+        frame, frame_detections = next(frame_generator), detections[i]
+
+        tracker_ids = set(frame_detections['player'].tracker_id)
+
+        if len(already_assigned_tracker_ids) == 0 or tracker_ids.issubset(already_assigned_tracker_ids) == False:
+            track_ids = frame_detections['player'].tracker_id
+            not_assigned_idx = [i for i in range(
+                len(track_ids)) if track_ids[i] not in already_assigned_tracker_ids]
+
+            already_assigned_tracker_ids.update(track_ids[not_assigned_idx])
+
+            # Filter out detections that are not assigned to any teams
+            not_assigned_detections = frame_detections['player'][not_assigned_idx]
+
+            team_ids = team_assigner.get_team_ids(
+                frame, not_assigned_detections, verbose=verbose)
+            team_ids += 5
+            tracker_id_to_team_id.update({
+                tracker_id: team_id
+                for tracker_id, team_id in zip(not_assigned_detections.tracker_id, team_ids)
+            })
+
+    for i in tqdm(range(n), total=n, desc="Assigning teams..."):
+        detections[i]['player'].class_id = np.array(
+            [tracker_id_to_team_id[tracker]
+                for tracker in detections[i]['player'].tracker_id]
+        )
 
     if save_stubs:
         print("Saving stubs...")
